@@ -28,33 +28,41 @@ const (
 	defaultMaxRetryDelay = 1000 * time.Second
 	defaultQPS           = float64(10.0)
 	defaultBurst         = 100
+	defaultConcurrent    = 5
 	flagMinRetryDelay    = "min-retry-delay"
 	flagMaxRetryDelay    = "max-retry-delay"
 	flagQPS              = "default-qps"
 	flagBurst            = "default-burst"
+	flagConcurrent       = "default-concurrent"
 )
 
 // RateLimiterOptions used on reconcilers.
 type RateLimiterOptions struct {
-	MinRetryDelay time.Duration
-	QPS           float64
-	Burst         int
-	MaxRetryDelay time.Duration
+	minRetryDelay time.Duration
+	maxRetryDelay time.Duration
+	qps           float64
+	burst         int
+	concurrent    int
 }
 
 func (o *RateLimiterOptions) BindFlags(fs *flag.FlagSet) {
-	fs.DurationVar(&o.MinRetryDelay, flagMinRetryDelay, defaultMinRetryDelay,
+	fs.DurationVar(&o.minRetryDelay, flagMinRetryDelay, defaultMinRetryDelay,
 		"Specifies the minimum delay time before retrying the reconciliation of an object. This delay provides a buffer to prevent rapid-fire retries.")
-	fs.DurationVar(&o.MaxRetryDelay, flagMaxRetryDelay, defaultMaxRetryDelay,
+	fs.DurationVar(&o.maxRetryDelay, flagMaxRetryDelay, defaultMaxRetryDelay,
 		"Specifies the maximum delay time before retrying the reconciliation of an object. This cap ensures that retry delays don't grow excessively long.")
-	fs.Float64Var(&o.QPS, flagQPS, defaultQPS, "Sets the maximum allowed quantity of process units (batches) that can be processed per second. This limit helps maintain a controlled processing rate.")
-	fs.IntVar(&o.Burst, flagBurst, defaultBurst, "Sets the maximum quantity of process units (batches) that can be processed in a burst. This limit helps control the processing rate during short periods of high activity.")
+	fs.Float64Var(&o.qps, flagQPS, defaultQPS, "Sets the maximum allowed quantity of process units (batches) that can be processed per second. This limit helps maintain a controlled processing rate.")
+	fs.IntVar(&o.burst, flagBurst, defaultBurst, "Sets the maximum quantity of process units (batches) that can be processed in a burst. This limit helps control the processing rate during short periods of high activity.")
+	flag.IntVar(&o.concurrent, flagConcurrent, defaultConcurrent, "The number of concurrent reconciles.")
 }
 
 func GetRateLimiter(opts RateLimiterOptions) ratelimiter.RateLimiter {
 	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(opts.MinRetryDelay, opts.MaxRetryDelay),
+		workqueue.NewItemExponentialFailureRateLimiter(opts.minRetryDelay, opts.maxRetryDelay),
 		// 10 qps, 100 bucket size.  This is only for retry speed and its only the overall factor (not per item)
-		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(opts.QPS), opts.Burst)},
+		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(opts.qps), opts.burst)},
 	)
+}
+
+func GetConcurrent(opts RateLimiterOptions) int {
+	return opts.concurrent
 }
