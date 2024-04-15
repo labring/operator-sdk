@@ -27,8 +27,6 @@ import (
 	"github.com/labring/operator-sdk/io"
 	"github.com/labring/operator-sdk/probe"
 	"github.com/labring/operator-sdk/version"
-	"k8s.io/klog/v2"
-
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 )
 
@@ -78,6 +76,7 @@ func (pr httpProber) Probe(url *url.URL, headers http.Header, timeout time.Durat
 		Transport:     pr.transport,
 		CheckRedirect: redirectChecker(pr.followNonLocalRedirects),
 	}
+	defer client.CloseIdleConnections()
 	return DoHTTPProbe(url, headers, client)
 }
 
