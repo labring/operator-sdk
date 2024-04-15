@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"k8s.io/klog/v2"
 	"net/http"
 	"net/url"
 	"time"
